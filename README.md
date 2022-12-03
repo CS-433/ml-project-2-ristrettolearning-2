@@ -4,10 +4,11 @@
 
 <!-- ABOUT THE PROJECT -->
 ## About The Project
-
+###Re producing the paper: Numerical influence of ReLU’(0) on backpropagation.
 
 This a project for the Machine Learning course at EPFL. The reproducibility challenge.
-We reproduce a part of the paper...
+We reproduce a part of the paper https://github.com/deel-ai/relu-prime
+
 
 Here's why:
 * example
