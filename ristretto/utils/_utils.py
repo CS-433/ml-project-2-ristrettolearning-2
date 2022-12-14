@@ -130,6 +130,11 @@ def train_multiple_models(
     metrics_fn=None,
     verbose=False
 ):
+    """
+    returns a list of metrics for each model
+    each metric is a dictionary with two keys: "train" and "validation" 
+    """
+    
     metrics = []
 
     # call data loader to download data before starting the actual training
