@@ -1,11 +1,27 @@
 import ristretto.utils.default as _default
 import torch as _torch
-import torch.nn as _nn
 import torch.nn.functional as _F
 import torch.optim as _optim
 import pandas as _pd
+import numpy as _np
 import math as _math
 from itertools import chain as _chain
+import random as _random
+
+def set_random_seed(seed):
+    _random.seed(seed)
+    _np.random.seed(seed)
+    _torch.manual_seed(seed)
+    _torch.cuda.manual_seed(seed)
+    _torch.cuda.manual_seed_all(seed)
+    _torch.backends.cudnn.deterministic = True
+
+@_torch.no_grad()
+def get_weight_sum(model):
+    filtered = filter(lambda x: x[0].endswith(
+        "weight"), model.named_parameters())
+    mapped = map(lambda x: x[1].sum(), filtered)
+    return sum(mapped).item()
 
 
 def train_loop(
@@ -89,6 +105,7 @@ def val_loop(
 def train_model(
     model,
     data_loader,
+    data_loader_transform=None,
     epochs=10,
     optimizer_fn=_optim.Adam,
     optimizer_kwargs={},
@@ -97,8 +114,10 @@ def train_model(
     metrics_fn=None,
     verbose=False
 ):
-
-    train_loader, val_loader = data_loader()
+    if data_loader_transform is not None:
+        train_loader, val_loader = data_loader(data_loader_transform)
+    else:
+        train_loader, val_loader = data_loader()
 
     optimizer = optimizer_fn(model.parameters(), **optimizer_kwargs)
 
@@ -112,7 +131,6 @@ def train_model(
         val_metrics.append(val_loop(
             model, criterion, val_loader, device, metrics_fn))
 
-
     return {
         "train": _pd.DataFrame(_chain.from_iterable(train_metrics)),
         "validation": _pd.DataFrame(_chain.from_iterable(val_metrics))
@@ -122,12 +140,14 @@ def train_model(
 def train_multiple_models(
     models,
     data_loader,
+    data_loader_transform=None,
     epochs=10,
     optimizer_fn=_optim.Adam,
     optimizer_kwargs={},
     criterion=_F.cross_entropy,
     device=_default.DEVICE,
     metrics_fn=None,
+    seed=None,
     verbose=False
 ):
     metrics = []
@@ -138,12 +158,16 @@ def train_multiple_models(
     for i, model in enumerate(models):
         model = model.to(device)
 
+        if seed is not None:
+            set_random_seed(seed)
+
         print(
             f"===== Model {i+1:{_math.ceil(_math.log10(len(models)+1))}d} ({model.__class__.__name__}) =====")
         metrics.append(
             train_model(
                 model,
                 data_loader,
+                data_loader_transform,
                 epochs,
                 optimizer_fn,
                 optimizer_kwargs,
