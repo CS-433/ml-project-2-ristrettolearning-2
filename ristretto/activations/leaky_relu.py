@@ -9,11 +9,19 @@ import torch.nn as nn
 
 class LeakyReLUFunction(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, input, negative_slope, alpha):
+    def forward(ctx, input, negative_slope, alpha, inplace):
         ctx.save_for_backward(input)
         ctx.negative_slope = negative_slope
         ctx.alpha = alpha
-        return input.clamp(min=0) + input.clamp(max=0) * negative_slope
+
+        if inplace:
+            result = input.clamp(min=0) + input.clamp(max=0) * negative_slope
+            ctx.save_for_backward(result)
+            return result
+
+        result = input.clamp(min=0) + input.clamp(max=0) * negative_slope
+        ctx.save_for_backward(result)
+        return result
 
     @staticmethod
     def backward(ctx, grad_output):
@@ -35,13 +43,14 @@ class LeakyReLU(nn.Module):
     alpha is the subgradient at LeakyReLU'(0) = alpha
     """
 
-    def __init__(self, negative_slope, alpha=None):
+    def __init__(self, negative_slope, alpha=None, inplace=False):
         super(LeakyReLU, self).__init__()
         self.negative_slope = negative_slope
         if alpha == None:
             self.alpha = negative_slope
         else:
             self.alpha = alpha
+        self.inplace = inplace
 
     def forward(self, input):
-        return LeakyReLUFunction.apply(input, self.negative_slope, self.alpha)
+        return LeakyReLUFunction.apply(input, self.negative_slope, self.alpha, self.inplace)
