@@ -89,6 +89,8 @@ def val_loop(
         metrics.append({
             'loss': loss.item(),
             'correct': (pred.argmax(1) == y).sum().item(),
+            ### maybe also return accuracy for plots 
+            'accuracy': (pred.argmax(1) == y).sum().item()/ len(val_loader.dataset)
         })
         if metrics_fn is not None:
             metrics[-1] = dict(**metrics[-1], **metrics_fn(model, pred, y))
