@@ -125,6 +125,7 @@ def train_model(
 
     train_metrics = []
     val_metrics = []
+    epoch_accuracy = []
     for epoch in range(epochs):
         print(
             f"---------- Epoch {epoch+1:{_math.ceil(_math.log10(epochs+1))}d} ----------")
@@ -132,11 +133,12 @@ def train_model(
             model, optimizer, criterion, train_loader, device, metrics_fn, verbose))
         val_metrics.append(val_loop(
             model, criterion, val_loader, device, metrics_fn))
+        epoch_accuracy
 
     return {
         "train": _pd.DataFrame(_chain.from_iterable(train_metrics)),
         "validation": _pd.DataFrame(_chain.from_iterable(val_metrics))
-    }
+    }  
 
 
 def train_multiple_models(
