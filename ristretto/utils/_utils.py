@@ -1,12 +1,23 @@
 import ristretto.utils.default as _default
+import ristretto.models as _rm
+import ristretto.activations as _ra
 import torch as _torch
 import torch.nn.functional as _F
+import torchvision.transforms as _transforms
 import torch.optim as _optim
+from torch.utils.data import (
+    random_split as _random_split,
+    DataLoader as _DataLoader
+)
 import pandas as _pd
 import numpy as _np
 import math as _math
 from itertools import chain as _chain
+from functools import partial as _partial
 import random as _random
+from ray import tune as _tune
+import os as _os
+
 
 def set_random_seed(seed):
     _random.seed(seed)
@@ -15,6 +26,7 @@ def set_random_seed(seed):
     _torch.cuda.manual_seed(seed)
     _torch.cuda.manual_seed_all(seed)
     _torch.backends.cudnn.deterministic = True
+
 
 @_torch.no_grad()
 def get_weight_sum(model):
@@ -31,6 +43,7 @@ def train_loop(
     train_loader,
     device=_default.DEVICE,
     metrics_fn=None,
+    dtype=None,
     verbose=False
 ):
 
@@ -43,6 +56,9 @@ def train_loop(
     for batch, (X, y) in enumerate(train_loader):
         # train step
         X, y = X.to(device), y.to(device)
+        if dtype is not None:
+            X = X.to(dtype=dtype)
+
         pred = model(X)
         loss = criterion(pred, y)
         optimizer.zero_grad()
@@ -73,7 +89,8 @@ def val_loop(
     criterion,
     val_loader,
     device=_default.DEVICE,
-    metrics_fn=None
+    metrics_fn=None,
+    dtype=None
 ):
 
     model.eval()
@@ -82,6 +99,8 @@ def val_loop(
     for X, y in val_loader:
         # val step
         X, y = X.to(device), y.to(device)
+        if dtype is not None:
+            X = X.to(dtype=dtype)
         pred = model(X)
         loss = criterion(pred, y)
 
@@ -130,7 +149,7 @@ def train_model(
         print(
             f"---------- Epoch {epoch+1:{_math.ceil(_math.log10(epochs+1))}d} ----------")
         train_metrics.append(train_loop(
-            model, optimizer, criterion, train_loader, device, metrics_fn, verbose))
+            model, optimizer, criterion, train_loader, device, metrics_fn, verbose=verbose))
         val_metrics.append(val_loop(
             model, criterion, val_loader, device, metrics_fn))
         epoch_accuracy
@@ -190,3 +209,126 @@ def train_multiple_models(
         del model
 
     return metrics
+
+
+def tune_train_mobilenet(
+    config,
+    checkpoint_dir=None,
+    seed=None,
+    epochs=10,
+    verbose=False
+):
+    _torch.set_default_tensor_type(_torch.FloatTensor)
+    _torch.set_default_dtype(_torch.bfloat16)
+
+    model = _rm.mobilenet_v3_small(activation=_partial(
+        _ra.ReLU6, config["alpha"], config["beta"]), seed=seed).to(_default.DEVICE)
+    # model = model.bfloat16()
+
+    optimizer = _optim.Adam(model.parameters(), lr=config["lr"])
+    criterion = _F.cross_entropy
+
+    if checkpoint_dir:
+        model_state, optimizer_state = _torch.load(
+            _os.path.join(checkpoint_dir, "checkpoint"))
+        model.load_state_dict(model_state)
+        optimizer.load_state_dict(optimizer_state)
+
+    train_set, test_set = _default.DATASETS["MNIST"](_transforms.Compose([
+        _transforms.Grayscale(num_output_channels=3),
+        _transforms.ToTensor(),
+    ]))
+
+    train_size = int(len(train_set) * 0.8)
+    train, val = _random_split(
+        train_set, [train_size, len(train_set) - train_size])
+
+    train_loader = _DataLoader(
+        train, batch_size=config["batch_size"], shuffle=True, num_workers=8)
+
+    val_loader = _DataLoader(
+        val, batch_size=config["batch_size"], shuffle=False, num_workers=8)
+
+    train_metrics = []
+    val_metrics = []
+    for epoch in range(epochs):
+        print(
+            f"---------- Epoch {epoch+1:{_math.ceil(_math.log10(epochs+1))}d} ----------")
+        train_metrics.append(train_loop(
+            model, optimizer, criterion, train_loader, verbose=verbose, dtype=_torch.bfloat16))
+        val_metrics.append(val_loop(
+            model, criterion, val_loader, dtype=_torch.bfloat16))
+
+        with _tune.checkpoint_dir(epoch) as checkpoint_dir:
+            path = _os.path.join(checkpoint_dir, "checkpoint")
+            _torch.save((model.state_dict(), optimizer.state_dict()), path)
+
+        metrics_df = _pd.DataFrame(val_metrics[-1])
+
+        _tune.report(loss=metrics_df["loss"].mean(), accuracy=(
+            metrics_df["correct"].sum() / len(val_loader.dataset) * 100))
+
+    return {
+        "train": _pd.DataFrame(_chain.from_iterable(train_metrics)),
+        "validation": _pd.DataFrame(_chain.from_iterable(val_metrics))
+    }
+
+
+def tune_train_fullyconnected(
+    config,
+    checkpoint_dir=None,
+    seed=None,
+    epochs=10,
+    verbose=False
+):
+    _torch.set_default_tensor_type(_torch.FloatTensor)
+    _torch.set_default_dtype(_torch.bfloat16)
+
+    model = _rm.FullyConnected(activation=_partial(
+        _ra.ReLU6, config["alpha"], config["beta"]), hidden_dims=[2000], seed=seed).to(_default.DEVICE)
+    optimizer = _optim.Adam(model.parameters(), lr=config["lr"])
+    criterion = _F.cross_entropy
+
+    if checkpoint_dir:
+        model_state, optimizer_state = _torch.load(
+            _os.path.join(checkpoint_dir, "checkpoint"))
+        model.load_state_dict(model_state)
+        optimizer.load_state_dict(optimizer_state)
+
+    train_set, test_set = _default.DATASETS["MNIST"](_transforms.Compose([
+        _transforms.ToTensor()
+    ]))
+
+    train_size = int(len(train_set) * 0.8)
+    train, val = _random_split(
+        train_set, [train_size, len(train_set) - train_size])
+
+    train_loader = _DataLoader(
+        train, batch_size=config["batch_size"], shuffle=True, num_workers=8)
+
+    val_loader = _DataLoader(
+        val, batch_size=config["batch_size"], shuffle=False, num_workers=8)
+
+    train_metrics = []
+    val_metrics = []
+    for epoch in range(epochs):
+        print(
+            f"---------- Epoch {epoch+1:{_math.ceil(_math.log10(epochs+1))}d} ----------")
+        train_metrics.append(train_loop(
+            model, optimizer, criterion, train_loader, verbose=verbose, dtype=_torch.bfloat16))
+        val_metrics.append(val_loop(
+            model, criterion, val_loader, dtype=_torch.bfloat16))
+
+        with _tune.checkpoint_dir(epoch) as checkpoint_dir:
+            path = _os.path.join(checkpoint_dir, "checkpoint")
+            _torch.save((model.state_dict(), optimizer.state_dict()), path)
+
+        metrics_df = _pd.DataFrame(val_metrics[-1])
+
+        _tune.report(loss=metrics_df["loss"].mean(), accuracy=(
+            metrics_df["correct"].sum() / len(val_loader.dataset) * 100))
+
+    return {
+        "train": _pd.DataFrame(_chain.from_iterable(train_metrics)),
+        "validation": _pd.DataFrame(_chain.from_iterable(val_metrics))
+    }

@@ -1,3 +1,5 @@
+## adapted from ## adapted from https://github.com/deel-ai/relu-prime/blob/6c359e0eab8fa12f710cadf50b333de2a8d1d24d/relu.py
+
 import torch
 import torch.nn as nn
 
