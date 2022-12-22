@@ -16,6 +16,6 @@ The goals of this project are:
 * Reproduce part of the paper to better understand state of the art problems in Machine Learning
 * As there's already a well documented code, we will go beyond the stated results of the paper and try some other things to get better insights of the former research.
 
-There's a  `run.py` to get started.
+Create a conda environment using the file environment.yml and simply run the desired notebook to reproduce the experiments
 
 ml-project-2-ristrettolearning-2 created by GitHub Classroom
