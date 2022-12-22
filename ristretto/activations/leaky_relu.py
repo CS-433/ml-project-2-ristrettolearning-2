@@ -1,3 +1,5 @@
+## adapted from https://github.com/deel-ai/relu-prime/blob/6c359e0eab8fa12f710cadf50b333de2a8d1d24d/relu.py
+
 import torch
 import torch.nn as nn
 
@@ -10,18 +12,14 @@ import torch.nn as nn
 class LeakyReLUFunction(torch.autograd.Function):
     @staticmethod
     def forward(ctx, input, negative_slope, alpha, inplace):
-        ctx.save_for_backward(input)
+        ctx.save_for_backward(input.clone())
         ctx.negative_slope = negative_slope
         ctx.alpha = alpha
 
         if inplace:
-            result = input.clamp(min=0) + input.clamp(max=0) * negative_slope
-            ctx.save_for_backward(result)
-            return result
+            return  input.clamp(min=0) + input.clamp(max=0) * negative_slope
 
-        result = input.clamp(min=0) + input.clamp(max=0) * negative_slope
-        ctx.save_for_backward(result)
-        return result
+        return input.clamp(min=0) + input.clamp(max=0) * negative_slope
 
     @staticmethod
     def backward(ctx, grad_output):

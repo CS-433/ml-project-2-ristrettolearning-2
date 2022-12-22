@@ -10,6 +10,20 @@ SEED = 42
 DEFAULT_OPTIMIZER_KWARGS = {
     'lr': 1e-3,
 }
+DATASETS = {
+    'MNIST': lambda transform=_transforms.ToTensor(): (
+        _datasets.MNIST('./data', train=True, download=True,
+                            transform=transform),
+        _datasets.MNIST('./data', train=False, download=True,
+                transform=transform)
+    ),
+    'FashionMNIST': lambda transform=_transforms.ToTensor(): (
+        _datasets.FashionMNIST('./data', train=True, download=True,
+                            transform=transform),
+        _datasets.FashionMNIST('./data', train=False, download=True,
+                transform=transform)
+    )
+}
 DATA_LOADERS = {
     'MNIST': lambda transform=_transforms.ToTensor(): (
         _torch.utils.data.DataLoader(
