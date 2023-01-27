@@ -5,7 +5,7 @@
 - Ramírez Contreras Héctor Manuel
 - Cerezo García Daniel  
 
-École Polytechnique Fédérale de Lausanne
+EPFL Machine Learning course 2022
 
 ## Project 2: Reproducibility Challenge 🚀️
 
