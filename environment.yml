@@ -1,4 +1,4 @@
-name: ml_epfl
+name: ristretto-reproducibility
 channels:
   - pytorch
   - nvidia
