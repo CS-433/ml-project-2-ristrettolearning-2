@@ -1,10 +1,17 @@
 # Team name: Ristretto Learning
 
+## The team:
+- Martorella Tommaso
+- Ramírez Contreras Héctor Manuel
+- Cerezo García Daniel  
+
+École Polytechnique Fédérale de Lausanne
+
 ## Project 2: Reproducibility Challenge 🚀️
 
 ### Reproducing the paper: Numerical influence of ReLU’(0) on backpropagation.
 
-This a project for the Machine Learning course at -. The reproducibility challenge.
+This a project for the Machine Learning course at EPFL. The reproducibility challenge.
 We reproduce a part of the paper [Numerical influence of ReLU’(0) on backpropagation.](https://github.com/deel-ai/relu-prime)
 
 The goals of this project are:
@@ -15,3 +22,5 @@ The goals of this project are:
 * We did some a different architecture of the code to run experiments so that we could have more flexibility when trying new things on models and datasets. (next steps could be test with more regularizations, optimizers and data sets.)
 
 Create a conda environment using the file environment.yml and simply run the desired notebook to reproduce the experiments.
+
+
